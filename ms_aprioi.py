@@ -6,29 +6,25 @@ import itertools
 from collections import defaultdict, OrderedDict
 
 # custom 
-def readInput(inputfile):
+def readInput(inputf,paramf):
     "read inputfile"
     data = []
-    with open(inputfile) as myfile:
-      inp = []
+    param = {}
+    sdc = 0
+
+
+    # set file
+    with open(inputf) as myfile:
       csv_records = csv.reader(myfile)
       for row in csv_records:
         new_list = [int(item) for item in row]
         data.append(new_list)
     # print(data)
-    return data
-
-# custom 
-def readParam(paramFile):
-    "Read the parameter file"
-
-    param = {}
-    sdc = 0
-
-    data = readInput("input-data.txt")
+   
     uniq_vals = set(itertools.chain.from_iterable(data))
 
-    file_iter = open("parameter-file.txt", 'r')
+    # param file
+    file_iter = open(paramf, 'r')
     for line in file_iter:
         line = line.replace(" ", "")
         line = line.strip()
@@ -58,7 +54,8 @@ def readParam(paramFile):
     param = {int(k):float(v) for k,v in param.items()}
     param = OrderedDict(sorted(param.items()))
 
-    return param, sdc
+    return data, param,sdc
+
 
 # custom x modified
 def getItemSetTransactionList(data_iterator):
@@ -76,16 +73,13 @@ def getItemSetTransactionList(data_iterator):
     # print(transactionList)
     return itemSet, transactionList
 
-# custom x modified
-def joinSet(itemSet, length):
-    """Join a set with itself and returns the n-element itemsets"""
-    return set([i.union(j) for i in itemSet for j in itemSet if len(i.union(j)) == length])
 
 # to-be modified
-def level2_cand_gen(FF, param, sdc, count, maxMIS, transSize):
+def l2_cgen(FF, param, sdc, count, maxMIS, transSize):
     "generate cadidates for the 2-itemset"
     s = set(frozenset([w]) for w in FF)
-    s2 = joinSet(s, 2)
+    s2 = set([i.union(j) for i in s for j in s if len(i.union(j)) == 2])
+    # s2 = joinSet(s, 2)
 
     Cand = []
     for e in s2:
@@ -119,8 +113,9 @@ def level2_cand_gen(FF, param, sdc, count, maxMIS, transSize):
     return Cand, minMIS
 
 # to-be modified
-def level_k_cand_gen(L, param, sdc, k, count, maxMIS):
-    s2 = joinSet(L, k)
+def lk_cgen(L, param, sdc, k, count, maxMIS):
+    s2 = set([i.union(j) for i in L for j in L if len(i.union(j)) == k])
+    # s2 = joinSet(L, k)
 
     Cand = []
     for e in s2:
@@ -133,7 +128,6 @@ def level_k_cand_gen(L, param, sdc, k, count, maxMIS):
                 maxSup = param[r]
         if maxSup-minSup <= sdc:
             Cand.append(e)
-
 
     ## get the lowest MIS
     minMIS = dict()
@@ -151,39 +145,6 @@ def level_k_cand_gen(L, param, sdc, k, count, maxMIS):
         maxMIS[i] = maxMISItem
     
     return Cand, minMIS
-
-
-def writeOutputFile(outputFile, F, count, maxMIS):
-    "Save output in the same format as requested"
-    with open(outputFile, 'w') as f:
-        k = []
-        for key in F:
-            k.append(key)
-        k = sorted(k)
-        for i in k:
-            f.write("(Length-%d %d\n\n" % (i,len(F[i])))
-            
-            for j in F[i]:
-                print(len(j))
-                if i == 1:
-                    tmp = next(iter(j))
-                    f.write("\t(%s) \n" % ( tuple(list(j))))
-                else:
-                    s = []
-                    f.write("")
-                    st = ""
-                    for i in set(j):
-                        st+=str(i)
-                        st+=" "
-                    
-                    f.write("\t("+st[:-1]+")\n")
-
-                    
-                    # f.write("\t(%s %s) \n" % (tuple(list(set(j)))))
-                    
-
-            # f.write("\n\tTotal number of frequent %d-itemsets = %d \n" % (i, len(F[i])))
-            f.write(")\n")
             
 # to-be modified
 def MSA (fileData, parameters, sdc):
@@ -193,16 +154,14 @@ def MSA (fileData, parameters, sdc):
     
     sorted_items = [(k, v) for k, v in sorted(parameters.items(), key=lambda item: item[1])]
     
-    
     # sorted_items = sorted(parameters.items(), key=operator.itemgetter(1))
     transSize = len(trans)
 
-    print("Working on 1 itemset ......")
     ## construct the M
     M =[]
     for i in (sorted_items):
         M.append(i[0])
-    print("M",M)
+    # print("M",M)
     ## get the count
     count=defaultdict(int)
     for item in M:
@@ -217,7 +176,7 @@ def MSA (fileData, parameters, sdc):
     start = 0
     pivot = 0
     for i in M:
-        print(i,count[i],parameters[i],pivot)
+        # print(i,count[i],parameters[i],pivot)
         if count[i]/float(len(trans)) >= parameters[i] and start == 0:
             L.append(i)
             start = 1
@@ -244,9 +203,9 @@ def MSA (fileData, parameters, sdc):
     while(len(F[k-1]) != 0):
         print("Working on",k,"itemset ......")
         if(k==2):
-            C, minMIS = level2_cand_gen(L, parameters, sdc, count, maxMIS, transSize)
+            C, minMIS = l2_cgen(L, parameters, sdc, count, maxMIS, transSize)
         else:
-            C, minMIS = level_k_cand_gen(F[k - 1], parameters, sdc, k, count, maxMIS)
+            C, minMIS = lk_cgen(F[k - 1], parameters, sdc, k, count, maxMIS)
 
         ## Get the count
         for item in C:
@@ -266,15 +225,43 @@ def MSA (fileData, parameters, sdc):
 
         k+=1
     del(F[k-1])
-    return F, count, maxMIS
+    return F
+
+def writeOutFile(outputFile, F):
+    "Save output in the same format as requested"
+    with open(outputFile, 'w') as f:
+        k = []
+        for key in F:
+            k.append(key)
+        k = sorted(k)
+        for i in k:
+            f.write("(Length-%d %d\n\n" % (i,len(F[i])))
+            
+            for j in F[i]:
+                print("F",len(j))
+                if i == 1:
+                    tmp = next(iter(j))
+                    f.write("\t(%s) \n" % ( tuple(list(j))))
+                else:
+                    s = []
+                    f.write("")
+                    st = ""
+                    for i in set(j):
+                        st+=str(i)
+                        st+=" "
+                    
+                    f.write("\t("+st[:-1]+")\n")
+
+                    
+                    # f.write("\t(%s %s) \n" % (tuple(list(set(j)))))
+                    
+
+            # f.write("\n\tTotal number of frequent %d-itemsets = %d \n" % (i, len(F[i])))
+            f.write(")\n")
 
 if __name__ == "__main__":
 
-    fileData = readInput("input-data.txt")
-    parameters, sdc = readParam("parameter-file.txt")
-
-    F, count, maxMIS = MSA(fileData, parameters, sdc)
-
-    ### Create the outputfile
-    writeOutputFile("outFile.txt", F, count, maxMIS)
+    fileData, parameters, sdc = readInput("input-data.txt","parameter-file.txt")
+    F= MSA(fileData, parameters, sdc)
+    writeOutFile("outFile.txt", F)
     print("\n DONE \n")
