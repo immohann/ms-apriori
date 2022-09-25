@@ -6,12 +6,11 @@ import itertools
 from collections import defaultdict, OrderedDict
 
 # custom 
-def readInput(inputf,paramf):
+def read_input(inputf,paramf):
     "read inputfile"
     data = []
     param = {}
     sdc = 0
-
 
     # set file
     with open(inputf) as myfile:
@@ -19,11 +18,9 @@ def readInput(inputf,paramf):
       for row in csv_records:
         new_list = [int(item) for item in row]
         data.append(new_list)
-    # print(data)
-   
-    uniq_vals = set(itertools.chain.from_iterable(data))
-
+        
     # param file
+    uniq_vals = set(itertools.chain.from_iterable(data))
     file_iter = open(paramf, 'r')
     for line in file_iter:
         line = line.replace(" ", "")
@@ -54,51 +51,50 @@ def readInput(inputf,paramf):
     param = {int(k):float(v) for k,v in param.items()}
     param = OrderedDict(sorted(param.items()))
 
-    return data, param,sdc
+    # print(data,param,sdc)
+
+    return data, param, sdc
 
 
-# custom x modified
-def getItemSetTransactionList(data_iterator):
+def get_transaction_list(data):
     "returns transactionList, 1-itemSet"
-
-    transactionList = []
-    itemSet = set()
-    for record in data_iterator:
-        transaction = set(record)
-        transactionList.append(transaction)
+    trans_list = []
+    item_set = set()
+    for tr in data:
+        transaction = set(tr)
+        trans_list.append(transaction)
         for item in transaction:
-            itemSet.add(item)              
-            # Generate 1-itemSets
+            item_set.add(item)              
+    
     # print(itemSet)
     # print(transactionList)
-    return itemSet, transactionList
+
+    return item_set, trans_list
 
 
 # to-be modified
-def l2_cgen(FF, param, sdc, count, maxMIS, transSize):
+def l2_cgen(FF, param, sdc, it_count, max_mis, transSize):
     "generate cadidates for the 2-itemset"
     s = set(frozenset([w]) for w in FF)
     s2 = set([i.union(j) for i in s for j in s if len(i.union(j)) == 2])
-    # s2 = joinSet(s, 2)
-
-    Cand = []
+    cand = []
     for e in s2:
         minSup = 1
         maxSup = 0
 
         for r in e:
-            if count[r]/float(transSize) < minSup:
-                minSup = count[r]/float(transSize)
-            if count[r]/float(transSize) > maxSup:
-                maxSup = count[r]/float(transSize)
+            if it_count[r]/float(transSize) < minSup:
+                minSup = it_count[r]/float(transSize)
+            if it_count[r]/float(transSize) > maxSup:
+                maxSup = it_count[r]/float(transSize)
 
         if maxSup-minSup <= sdc:
-            Cand.append(e)
+            cand.append(e)
 
     ## get the lowest MIS (done)
-    minMIS = dict()
+    min_mis = dict()
 
-    for i in Cand:
+    for i in cand:
         min = 1
         max = 0
         maxMISItem = 0
@@ -107,17 +103,19 @@ def l2_cgen(FF, param, sdc, count, maxMIS, transSize):
                 min = param[j]
             if param[j] > max:
                 max = param[j]
-                maxMISItem = count[j]
-        minMIS[i] = min
-        maxMIS[i] = maxMISItem
-    return Cand, minMIS
+                maxMISItem = it_count[j]
+        min_mis[i] = min
+        max_mis[i] = maxMISItem
+
+        # print(cand)
+        # print(min_mis)
+
+    return cand, min_mis
 
 # to-be modified
-def lk_cgen(L, param, sdc, k, count, maxMIS):
+def lk_cgen(L, param, sdc, k, it_count, max_mis):
     s2 = set([i.union(j) for i in L for j in L if len(i.union(j)) == k])
-    # s2 = joinSet(L, k)
-
-    Cand = []
+    cand = []
     for e in s2:
         minSup = 1
         maxSup = 0
@@ -127,42 +125,43 @@ def lk_cgen(L, param, sdc, k, count, maxMIS):
             if param[r] > maxSup:
                 maxSup = param[r]
         if maxSup-minSup <= sdc:
-            Cand.append(e)
+            cand.append(e)
 
     ## get the lowest MIS
-    minMIS = dict()
-    for i in Cand:
+    min_mis = dict()
+    for i in cand:
         min = 1
         max = 0
-        maxMISItem = 0
+        max_mis_item = 0
         for j in i:
             if param[j] < min:
                 min = param[j]
             if param[j] > max:
                 max = param[j]
-                maxMISItem = count[j]
-        minMIS[i] = min
-        maxMIS[i] = maxMISItem
-    
-    return Cand, minMIS
+                max_mis_item = it_count[j]
+        min_mis[i] = min
+        max_mis[i] = max_mis_item
+
+        # print(cand)
+        # print(min_mis)
+
+    return cand, min_mis
             
-# to-be modified
+    
 def MSA (fileData, parameters, sdc):
     "MSApriori algorithm"
-    one, trans = getItemSetTransactionList(fileData)
-    # print(parameters.items())
-    
+    one, trans = get_transaction_list(fileData)
     sorted_items = [(k, v) for k, v in sorted(parameters.items(), key=lambda item: item[1])]
-    
-    # sorted_items = sorted(parameters.items(), key=operator.itemgetter(1))
     transSize = len(trans)
 
     ## construct the M
     M =[]
     for i in (sorted_items):
         M.append(i[0])
+
     # print("M",M)
     ## get the count
+    
     count=defaultdict(int)
     for item in M:
         for transaction in trans:
@@ -171,7 +170,8 @@ def MSA (fileData, parameters, sdc):
                 count[item] += 1
 
     # print(count)
-    ## Initial pass
+    # Initial pass
+    
     L=[]
     start = 0
     pivot = 0
@@ -186,48 +186,45 @@ def MSA (fileData, parameters, sdc):
 
     # print(L)
 
-    ## select the 1-frequentset
+    # select the 1-frequentset
     F = dict()
     F_local = []
     for i in L:
         if count[i] / float(len(trans))  >= parameters[i]:
             F_local.append({i})
-    ### Check constrains
-   
     F[1] = F_local
 
 
-    ### for the rest of set-size
+    # for the rest of set-size
     k = 2
-    maxMIS = dict()
+    max_mis = dict()
     while(len(F[k-1]) != 0):
         print("Working on",k,"itemset ......")
         if(k==2):
-            C, minMIS = l2_cgen(L, parameters, sdc, count, maxMIS, transSize)
+            cd, min_mis = l2_cgen(L, parameters, sdc, count, max_mis, transSize)
         else:
-            C, minMIS = lk_cgen(F[k - 1], parameters, sdc, k, count, maxMIS)
+            cd, min_mis = lk_cgen(F[k - 1], parameters, sdc, k, count, max_mis)
 
         ## Get the count
-        for item in C:
+        for item in cd:
             for transaction in trans:
                 if item.issubset(transaction):
                     count[item] += 1
 
         ## Select the items fro the k-frequent itemset
         F_local = []
-        for item in C:
-            if count[item] / float(len(trans))  >= minMIS[item]:#parameters[list(item)[0]]:
+        for item in cd:
+            if count[item] / float(len(trans))  >= min_mis[item]:
                 F_local.append(item)
-
-        ##### Check constrains
-       
         F[k] = F_local
-
         k+=1
     del(F[k-1])
+
+    # print(F)
+
     return F
 
-def writeOutFile(outputFile, F):
+def save_file(outputFile, F):
     "Save output in the same format as requested"
     with open(outputFile, 'w') as f:
         k = []
@@ -251,17 +248,11 @@ def writeOutFile(outputFile, F):
                         st+=" "
                     
                     f.write("\t("+st[:-1]+")\n")
-
-                    
-                    # f.write("\t(%s %s) \n" % (tuple(list(set(j)))))
-                    
-
-            # f.write("\n\tTotal number of frequent %d-itemsets = %d \n" % (i, len(F[i])))
             f.write(")\n")
 
 if __name__ == "__main__":
 
-    fileData, parameters, sdc = readInput("input-data.txt","parameter-file.txt")
+    fileData, parameters, sdc = read_input("input-data.txt","parameter-file.txt")
     F= MSA(fileData, parameters, sdc)
-    writeOutFile("outFile.txt", F)
+    save_file("outFile.txt", F)
     print("\n DONE \n")
