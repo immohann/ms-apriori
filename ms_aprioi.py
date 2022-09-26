@@ -55,23 +55,6 @@ def read_input(inputf,paramf):
 
     return data, param, sdc
 
-
-def get_transaction_list(data):
-    "returns transactionList, 1-itemSet"
-    trans_list = []
-    item_set = set()
-    for tr in data:
-        transaction = set(tr)
-        trans_list.append(transaction)
-        for item in transaction:
-            item_set.add(item)              
-    
-    # print(itemSet)
-    # print(transactionList)
-
-    return item_set, trans_list
-
-
 # to-be modified
 def l2_cgen(FF, param, sdc, it_count, max_mis, transSize):
     "generate cadidates for the 2-itemset"
@@ -150,8 +133,12 @@ def lk_cgen(L, param, sdc, k, it_count, max_mis):
     
 def MSA (fileData, parameters, sdc):
     "MSApriori algorithm"
-    one, trans = get_transaction_list(fileData)
+    trans = []
+    for tr in fileData:
+        trans.append(set(tr))
+
     sorted_items = [(k, v) for k, v in sorted(parameters.items(), key=lambda item: item[1])]
+    print(sorted_items)
     transSize = len(trans)
 
     ## construct the M
@@ -210,7 +197,7 @@ def MSA (fileData, parameters, sdc):
             for transaction in trans:
                 if item.issubset(transaction):
                     count[item] += 1
-
+    
         ## Select the items fro the k-frequent itemset
         F_local = []
         for item in cd:
@@ -218,9 +205,8 @@ def MSA (fileData, parameters, sdc):
                 F_local.append(item)
         F[k] = F_local
         k+=1
-    del(F[k-1])
 
-    # print(F)
+    del(F[k-1])
 
     return F
 
